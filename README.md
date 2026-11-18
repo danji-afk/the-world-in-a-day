@@ -1,3 +1,7 @@
+[![make.fun · news-image-20261117](https://make.fun/badge/news-image-20261117.svg)](https://make.fun/bounty/news-image-20261117?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261117)
+[![rank](https://make.fun/badge/news-image-20261117/danji-afk/the-world-in-a-day/rank.svg)](https://make.fun/bounty/news-image-20261117/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261117)
+[![reward](https://make.fun/badge/news-image-20261117/danji-afk/the-world-in-a-day/reward.svg)](https://make.fun/bounty/news-image-20261117?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261117)
+
 # The World in a Day
 
 A 1024 × 1024 RGB newspaper front page for Tuesday, 17 November 2026, with an oversized date, three illustrated lead stories, eight dispatch cards, and compact world briefs. Earlier or upcoming events carry explicit dates.
