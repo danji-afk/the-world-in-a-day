@@ -310,21 +310,21 @@ def italic(value, x, y, size, max_width):
     image.paste(tile,(round(x*SCALE)-pad,round(y*SCALE)-pad),tile)
 
 
-def build():
-    # Masthead: an oversized date, airy small caps, and traditional double rules.
-    text("THE DAILY WORLD BRIEF",28,29,10,"bold",RED)
-    globe(512,34,9,RED)
-    text("INDEPENDENT WORLD EDITION",996,29,10,"bold",RED,"right")
-    fitted("THE WORLD IN A DAY",512,52,49,"serif",968,align="center")
-    line([(28,114),(419,114)],INK,1)
-    tracked("TUESDAY",512,108,14,3.5,RED)
-    line([(605,114),(996,114)],INK,1)
-    fitted("17 NOVEMBER 2026",512,130,73,"serif",968,align="center",minimum=65)
-    text("THE WORLD’S NEWS IN ONE PAGE · 17 STORIES · ONE DAY",512,204,
-         11.5,"bold",align="center",max_width=968)
-    line([(28,225),(996,225)],INK,2)
-    line([(28,231),(996,231)],INK,0.8)
+def small_icon(kind, x, y, size=20):
+    """Scale the shared icon geometry, including its stroke, on a fixed grid."""
+    global image, draw
+    page, page_draw = image, draw
+    tile = Image.new("RGB", (36*SCALE, 36*SCALE), PAPER)
+    try:
+        image, draw = tile, ImageDraw.Draw(tile)
+        icon(kind, 1, 1)
+    finally:
+        image, draw = page, page_draw
+    tile = tile.resize((round(size*SCALE), round(size*SCALE)), Image.Resampling.LANCZOS)
+    image.paste(tile, (round(x*SCALE), round(y*SCALE)))
 
+
+def build():
     panels = [
         (28,"01 / EUROPE", "UKRAINE · RUSSIA", bridge_art,
          ["Kerch Bridge", "road span falls"],
@@ -336,52 +336,112 @@ def build():
          ["Trump in Manila:", "Quad reconvenes"],
          "LEADERS’ FIRST MEETING IN 2 YEARS"),
     ]
-    for x,tag,place,art,headline,deck in panels:
-        text(tag,x,247,10,"bold",RED)
-        text(place,x+312,247,9,"bold",INK,"right")
-        art(x+1,270,310,180)
-        rect((x,269,x+312,451),outline=INK,width=2)
-        for i, value in enumerate(headline):
-            fitted(value,x,465+i*34,29,"serif",312,minimum=24)
-        fitted(deck,x,539,10.3,"bold",312,color=MUTED)
-    line([(28,568),(996,568)],INK,2)
-    text("THE DAY IN EIGHT DISPATCHES",28,583,10.5,"bold",RED)
-    text("POLITICS / HEALTH / CLIMATE / TECHNOLOGY",996,583,9,"bold",MUTED,"right")
-
     cards = [
         ("GLOBAL · TECHNOLOGY","outage",["Global tech", "outages"],"NSA, APPLE & BANKS HIT"),
         ("US · PUBLIC HEALTH","health",["US loses measles-", "free status"],"ELIMINATION STATUS REVOKED"),
         ("TÜRKIYE · CLIMATE","climate",["COP31: fossil", "fuel deadlock"],"ANTALYA NEGOTIATIONS"),
         ("US · ENVIRONMENT","data",["Data centers’", "carbon footprint"],"EMISSIONS ≈ DENMARK · STUDY"),
         ("GAZA · 12 NOV CONTEXT","hospital",["Hospital strike", "kills six"],"NASSER HOSPITAL · OFFICIALS"),
-        ("RUSSIA · BASHKORTOSTAN","strike",["Refinery fire", "after drone night"],"1,441 DRONES · 17 NOVEMBER"),
+        ("WORLD · 17 NOVEMBER","health",["Cervical cancer", "elimination day"],"GLOBAL HEALTH OBSERVANCE"),
         ("FRANCE · EUROPE","strike",["Public sector", "on strike"],"GRÈVE (FRANCE) · PAY DEMANDS"),
         ("NVIDIA · 17 NOVEMBER","chip",["Huang resigns", "amid China row"],"CHINA-CHIP SCANDAL"),
     ]
-    for n,(region,kind,title,deck) in enumerate(cards):
-        x = 28+(n%4)*(248)
-        y = 610+(n//4)*134
-        rect((x,y,x+224,y+118),outline=INK,width=1.5)
-        text(region,x+16,y+16,8.2,"bold",RED,max_width=192)
-        icon(kind,x+180,y+40)
-        for i,value in enumerate(title):
-            fitted(value,x+16,y+40+i*25,19,"serif",164,minimum=16)
-        fitted(deck,x+16,y+96,8.2,"bold",192,color=MUTED,minimum=7.5)
-
-    line([(28,886),(996,886)],INK,2)
-    text("WORLD BRIEFS",40,902,11,"bold",RED)
-    text("LATEST & CONTEXT · EARLIER EVENT DATES MARKED",984,903,8.5,"bold",MUTED,"right")
-    briefs = [
-        ("Kyiv: 2 Dnipro bridges hit · 50,000 without power", "Patterson named seventh 007"),
-        ("Voyager 1 · CROSSES ONE LIGHT-DAY TOMORROW", "Jordan + Iraq block Telegram · MON 16 NOV"),
-        ("US women win ice hockey worlds · MON 16 NOV", "Russia car bomb injures ex-PM aide · FRI 13 NOV"),
+    more = [
+        ("KYIV · EUROPE", "strike", "Dnipro bridges hit", "50,000 without power"),
+        ("SHENZHEN · ASIA", "climate", "Trump–Xi–Putin", "Trilateral planned Thu 19 Nov"),
+        ("MANILA · ASIA", "strike", "Trump visit arrests", "Protests in the Philippines"),
+        ("ISRAEL · MIDDLE EAST", "strike", "Kahana wins vote", "Coalition backs 66–52"),
+        ("GAZA · MIDDLE EAST", "hospital", "WHO: unblock aid", "Fourth winter in Gaza"),
+        ("GERMANY · EUROPE", "health", "More aid for Gaza", "Germany calls for access"),
+        ("RUSSIA · EUROPE", "strike", "Refinery fire", "Bashkortostan · drone night"),
+        ("CO₂ · WORLD", "data", "Data-center exports", "Russia, Saudi Arabia, Australia"),
+        ("MARKETS · AMERICAS", "chip", "US stocks slide", "Tech outages extend decline"),
+        ("AIR TRAVEL · US", "outage", "United cancels", "Flights disrupted by outage"),
+        ("MONGOLIA · ASIA", "mongolia", "President resigns", "Political upheaval"),
+        ("CHOLERA · AFRICA", "health", "WHO races outbreaks", "Cholera response in Africa"),
     ]
-    for i,(left,right) in enumerate(briefs):
-        yy = 927+i*21
-        italic(left,40,yy,10.6,444)
-        ellipse((505,yy+4,509,yy+8),RED)
-        italic(right,533,yy,10.6,451)
-    line([(28,992),(996,992)],INK,0.8)
+    briefs = [
+        "Voyager 1: one light-day · WED 18 NOV",
+        "Jordan + Iraq block Telegram · MON 16 NOV",
+        "Russia car bomb injures ex-PM aide · FRI 13 NOV",
+        "US women win ice hockey worlds · MON 16 NOV",
+        "Robert Pattinson named seventh 007",
+        "Brooklyn building collapse: death toll reaches 8",
+        "DC gym shooting: suspect charged",
+        "Tiger Woods returning after suspension",
+        "Waymo pulls cars after California ban",
+        "Iran claims hack of US MQ-170 drone",
+        "Trump warns Iran over dirty bomb in DC",
+        "ASEAN / APEC closes in Shenzhen",
+        "Bangladesh: tear gas at wage protest · 500 factories shut",
+        "Bahrain: Iran's third strike wave on US 5th Fleet host",
+        "DRC: WHO panel on Bundibugyo outbreak · 11,000 cases",
+        "Germany urges unblocked Gaza aid",
+        "Kerch district: 2 killed in overnight drone attack",
+        "3rd US carrier joins Gulf blockade · MON 16 NOV",
+    ]
+    story_count = len(panels) + len(cards) + len(more) + len(briefs)
+    assert story_count == 41
+
+    # Preserve the oversized masthead and date as the visual entry point.
+    text("THE DAILY WORLD BRIEF",28,29,10,"bold",RED)
+    globe(512,34,9,RED)
+    text("INDEPENDENT WORLD EDITION",996,29,10,"bold",RED,"right")
+    fitted("THE WORLD IN A DAY",512,52,49,"serif",968,align="center")
+    line([(28,114),(419,114)],INK,1)
+    tracked("TUESDAY",512,108,14,3.5,RED)
+    line([(605,114),(996,114)],INK,1)
+    fitted("17 NOVEMBER 2026",512,130,73,"serif",968,align="center",minimum=65)
+    text(f"THE WORLD’S NEWS IN ONE PAGE · {story_count} STORIES · 6 CONTINENTS · ONE DAY",
+         512,204,11.5,"bold",align="center",max_width=968)
+    line([(28,225),(996,225)],INK,2)
+    line([(28,231),(996,231)],INK,0.8)
+
+    for x,tag,place,art,headline,deck in panels:
+        text(tag,x,243,10,"bold",RED)
+        text(place,x+312,243,9,"bold",INK,"right")
+        art(x+1,262,310,180)
+        rect((x,261,x+312,443),outline=INK,width=2)
+        for i, value in enumerate(headline):
+            fitted(value,x,453+i*30,27,"serif",312,minimum=24)
+        fitted(deck,x,518,10.3,"bold",312,color=MUTED)
+
+    line([(28,538),(996,538)],INK,2)
+    text("THE DAY IN EIGHT DISPATCHES",28,549,10.5,"bold",RED)
+    text("POLITICS / HEALTH / CLIMATE / TECHNOLOGY",996,550,9,"bold",MUTED,"right")
+    for n,(region,kind,title,deck) in enumerate(cards):
+        x = 28+(n%4)*248
+        y = 570+(n//4)*94
+        rect((x,y,x+224,y+86),outline=INK,width=1)
+        text(region,x+12,y+10,8.2,"bold",RED,max_width=200)
+        small_icon(kind,x+190,y+31,23)
+        for i,value in enumerate(title):
+            fitted(value,x+12,y+28+i*21,18,"serif",174,minimum=16)
+        fitted(deck,x+12,y+70,8.2,"bold",200,color=MUTED,minimum=8)
+
+    line([(28,762),(996,762)],INK,1.5)
+    text("THE WORLD IN TWELVE MORE",28,774,10.5,"bold",RED)
+    text("A WIDER LENS / SIX CONTINENTS",996,775,9,"bold",MUTED,"right")
+    gap = 8
+    card_width = (968-5*gap)/6
+    for n,(region,kind,headline,detail) in enumerate(more):
+        x = 28+(n%6)*(card_width+gap)
+        y = 794+(n//6)*51
+        rect((x,y,x+card_width,y+45),outline=MUTED,width=0.65)
+        small_icon(kind,x+5,y+4,16)
+        text(region,x+25,y+7,7.5,"bold",RED,max_width=card_width-29)
+        fitted(headline,x+6,y+22,10.5,"serif",card_width-12,minimum=10)
+        fitted(detail,x+6,y+35,8,"sans",card_width-12,minimum=8)
+
+    line([(28,900),(996,900)],INK,1.5)
+    text("WORLD BRIEFS · EIGHTEEN IN FOCUS",28,910,10.5,"bold",RED)
+    text("EARLIER & UPCOMING EVENT DATES MARKED",996,911,8.5,"bold",MUTED,"right")
+    for n,value in enumerate(briefs):
+        x = 28+(n%3)*(968/3)
+        y = 931+(n//3)*11.5
+        ellipse((x,y+3,x+3,y+6),RED)
+        text(value,x+9,y,9.2,"book",max_width=309)
+    line([(28,1000),(996,1000)],INK,0.8)
     # Check all normal text boxes for unintended overlap, including small caps.
     for n,(a,ba) in enumerate(TEXT_BOXES):
         for b,bb in TEXT_BOXES[n+1:]:

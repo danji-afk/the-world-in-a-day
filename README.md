@@ -4,7 +4,7 @@
 
 # The World in a Day
 
-A 1024 × 1024 RGB newspaper front page for Tuesday, 17 November 2026, with an oversized date, three illustrated lead stories, eight dispatch cards, and compact world briefs. Earlier or upcoming events carry explicit dates.
+A 1024 × 1024 RGB newspaper front page for Tuesday, 17 November 2026, with an oversized date, three illustrated lead stories, eight dispatches, twelve additional world cards, and eighteen compact world briefs (41 stories total). Earlier or upcoming events carry explicit dates.
 
 Render the artwork with `python3 render.py` (requires Pillow and system DejaVu fonts).
 
