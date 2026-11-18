@@ -4,21 +4,22 @@ Requires Python 3, Pillow, and the system DejaVu fonts. No external assets,
 network access, randomness, clock reads, or generated image metadata.
 """
 from functools import lru_cache
-from math import cos, sin, pi
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
+from artwork import bridge, coordinate_hash, hormuz, manila
+
 SIZE = 1024
 SCALE = 3
-PAPER = "#f6f1e4"
-INK = "#1a1a1a"
+PAPER = "#f5eedf"
+INK = "#1b1b1f"
 RED = "#b3382c"
 NAVY = "#14213d"
 BLUE = "#547a89"
-PALE = "#dfE5df"
 STONE = "#e5ddcc"
 MUTED = "#646158"
+HAIRLINE = "#74695b"
 FONT_DIR = Path("/usr/share/fonts/truetype/dejavu")
 ROOT = Path(__file__).resolve().parent
 image = Image.new("RGB", (SIZE * SCALE, SIZE * SCALE), PAPER)
@@ -89,25 +90,6 @@ def fitted(value, x, y, size, family, max_width, color=INK, align="left", minimu
     text(value, x, y, size, family, color, align, max_width)
 
 
-def tracked(value, center, y, size, spacing, color=INK):
-    widths = [text_width(ch, size, "bold") for ch in value]
-    total = sum(widths) + spacing * (len(value) - 1)
-    x = center - total / 2
-    for ch, w in zip(value, widths):
-        if ch != " ":
-            text(ch, x, y, size, "bold", color)
-        x += w + spacing
-
-
-def star(cx, cy, radius, color=PAPER, points=5):
-    vertices = []
-    for i in range(points * 2):
-        angle = -pi / 2 + i * pi / points
-        r = radius if i % 2 == 0 else radius * 0.43
-        vertices.append((cx + cos(angle) * r, cy + sin(angle) * r))
-    poly(vertices, color)
-
-
 def globe(cx, cy, r, color=INK, stroke=1):
     ellipse((cx-r, cy-r, cx+r, cy+r), outline=color, width=stroke)
     ellipse((cx-r*0.48, cy-r, cx+r*0.48, cy+r), outline=color, width=stroke)
@@ -116,133 +98,72 @@ def globe(cx, cy, r, color=INK, stroke=1):
     line([(cx-r*0.85, cy+r*0.45), (cx+r*0.85, cy+r*0.45)], color, stroke)
 
 
-def bridge_art(x, y, w, h):
-    rect((x, y, x+w, y+h), PALE)
-    ellipse((x+235, y+19, x+265, y+49), PAPER)
-    # A flat sea band keeps the broken structure visually legible.
-    poly([(x,y+99),(x+35,y+83),(x+72,y+92),(x+113,y+88),
-          (x+159,y+99),(x+w,y+90),(x+w,y+h),(x,y+h)], "#c9d4cf")
-    rect((x, y+115, x+w, y+h), BLUE)
-    # Surviving road sections and piers.
-    for xx in [27, 75, 236, 280]:
-        poly([(x+xx,y+98),(x+xx+12,y+98),(x+xx+9,y+138),
-              (x+xx+3,y+138)], NAVY)
-    poly([(x,y+91),(x+112,y+91),(x+121,y+99),(x+112,y+106),(x,y+106)], NAVY)
-    poly([(x+218,y+91),(x+w,y+91),(x+w,y+106),(x+207,y+106)], NAVY)
-    line([(x,y+88),(x+109,y+88)], PAPER, 2)
-    line([(x+220,y+88),(x+w,y+88)], PAPER, 2)
-    # Jagged ends make the open span read as a fresh structural break.
-    poly([(x+80,y+91),(x+103,y+65),(x+132,y+48),(x+150,y+44),
-          (x+151,y+52),(x+137,y+56),(x+130,y+61),(x+121,y+65),
-          (x+114,y+75),(x+106,y+71),(x+101,y+91)], NAVY)
-    poly([(x+186,y+49),(x+201,y+60),(x+207,y+65),(x+214,y+77),
-          (x+222,y+83),(x+232,y+91),(x+218,y+91),(x+211,y+82),
-          (x+204,y+78),(x+199,y+68),(x+190,y+62)], NAVY)
-    for xx, yy, end in [(105,67,91),(126,54,91),(210,70,91)]:
-        line([(x+xx,y+yy),(x+xx,y+end)], NAVY, 2)
-    # A detached fractured section tumbles toward the water, trailing a crack.
-    poly([(x+128,y+105),(x+190,y+132),(x+183,y+145),(x+121,y+117)], NAVY)
-    line([(x+128,y+105),(x+140,y+111),(x+145,y+108),(x+157,y+119),
-          (x+164,y+117),(x+177,y+128),(x+190,y+132)], PAPER, 2)
-    poly([(x+158,y+68),(x+166,y+82),(x+151,y+77)], RED)
-    poly([(x+193,y+106),(x+202,y+116),(x+188,y+120)], RED)
-    # Splash arcs and impact rays sit on the surface of the flat sea band.
-    line([(x+165,y+153),(x+177,y+147),(x+190,y+153)], PAPER, 2)
-    line([(x+156,y+159),(x+172,y+156)], PAPER, 1.5)
-    line([(x+184,y+158),(x+203,y+155)], PAPER, 1.5)
-    line([(x+170,y+143),(x+166,y+136)], PAPER, 1)
-    line([(x+185,y+143),(x+190,y+135)], PAPER, 1)
-    line([(x+205,y+151),(x+212,y+146)], PAPER, 1)
+def paper_grain():
+    """Fixed-coordinate hash fibers, with no mutable RNG or clock dependency."""
+    for row in range(0, SIZE, 4):
+        for col in range(0, SIZE, 4):
+            code = coordinate_hash(col, row)
+            if code & 3 == 0:
+                continue
+            x = col + ((code >> 2) & 7) / 3
+            y = row + ((code >> 5) & 7) / 3
+            color = ("#e9ddc8", "#eee2ce", "#fcf5e8", "#f9f3e6")[(code >> 8) & 3]
+            line([(x, y), (x + .65, y + .33)], color, .45)
 
 
-def flame(x, y, s):
-    # Overlapping triangular tongues and a darker triangular inner core.
-    for points in [
-        [(-19,2),(-12,-35),(0,2)],
-        [(-12,3),(1,-49),(15,3)],
-        [(2,3),(18,-29),(21,3)],
-    ]:
-        poly([(x+xx*s,y+yy*s) for xx,yy in points], RED)
-    poly([(x-8*s,y+3*s),(x+2*s,y-26*s),(x+11*s,y+3*s)], "#762b28")
+def double_rule(x1, x2, y, color=INK):
+    line([(x1, y), (x2, y)], color, .65)
+    line([(x1, y + 3), (x2, y + 3)], color, .65)
 
 
-def ship(x, y, length, scale=1):
-    # Clean, uninterrupted ship silhouettes: tapered hulls and simple bridges.
-    poly([(x,y),(x+length,y),(x+length-14*scale,y+20*scale),
-          (x+18*scale,y+20*scale)], PAPER)
-    rect((x+12*scale,y-25*scale,x+37*scale,y), PAPER)
-    line([(x+24*scale,y-25*scale),(x+24*scale,y-39*scale)], PAPER, 2)
+def display(value, y, width, height, tracking=0, color=INK, family="serif"):
+    """Shape all-cap masthead type to a precise width using the installed serif."""
+    face = font(100, family)
+    kern = round(tracking * SCALE)
+    advance = sum(face.getlength(ch) for ch in value) + kern * (len(value) - 1)
+    mask = Image.new("L", (round(advance) + 12, 115 * SCALE))
+    pen = ImageDraw.Draw(mask)
+    cursor = 6
+    for ch in value:
+        pen.text((round(cursor), 0), ch, font=face, fill=255)
+        cursor += face.getlength(ch) + kern
+    mask = mask.crop(mask.getbbox()).resize((width * SCALE, height * SCALE), Image.Resampling.LANCZOS)
+    x = (SIZE - width) / 2
+    image.paste(color, (round(x * SCALE), round(y * SCALE)), mask)
+    TEXT_BOXES.append((value, (x, y, x + width, y + height)))
 
 
-def hormuz_art(x, y, w, h):
-    rect((x,y,x+w,y+h), "#d9ded7")
-    # Two opposed coastlines establish the narrow shipping channel.
-    poly([(x,y),(x+116,y),(x+90,y+24),(x+103,y+43),(x+51,y+57),
-          (x+37,y+86),(x,y+98)], STONE)
-    poly([(x+w,y+29),(x+268,y+41),(x+252,y+66),(x+271,y+87),
-          (x+w,y+98)], STONE)
-    waterline = y+103
-    poly([(x,waterline),(x+74,waterline),(x+144,waterline),
-          (x+225,waterline),(x+w,waterline),(x+w,y+h),(x,y+h)], NAVY)
-    ship(x+25,y+124,137,1)
-    ship(x+167,y+124,112,0.78)
-    flame(x+100,y+119,1)
-    flame(x+227,y+119,0.84)
-    for xx, yy, ll in [(13,154,67),(179,154,69),(68,168,74),(245,168,40)]:
-        line([(x+xx,y+yy),(x+xx+ll,y+yy)], BLUE, 1.5)
-    line([(x+88,y+153),(x+118,y+153)], RED, 3)
-    line([(x+211,y+153),(x+240,y+153)], RED, 2)
+def masthead(story_count):
+    line([(28, 28), (996, 28)], INK, 2)
+    line([(28, 33), (996, 33)], INK, .65)
+    display("THE DAILY WORLD BRIEF", 44, 710, 63, tracking=-1.7)
+    for left, right in [(28, 130), (894, 996)]:
+        cx = (left + right) / 2
+        double_rule(left, right, 72)
+        ellipse((cx - 12, 62, cx + 12, 86), PAPER)
+        globe(cx, 74, 8.4, RED, .7)
+    text("EST. 2026", 79, 91, 9, "bold", RED, "center")
+    text("INDEPENDENT WORLD EDITION", 930, 91, 7.1, "bold", RED, "center")
+    double_rule(28, 996, 116)
+    for x in (257, 767):
+        line([(x, 124), (x, 137)], INK, .7)
+    for x, value in [(142, "VOL. I · No. 347"), (512, "TUESDAY, 17 NOVEMBER 2026"),
+                     (882, "WORLD EDITION · ONE PAGE")]:
+        text(value, x, 126, 10, "book", align="center")
+    line([(28, 142), (996, 142)], INK, .65)
+    display("TUESDAY 17 NOVEMBER 2026", 155, 941, 56, tracking=-1.3, family="book")
+    text("THE WORLD IN A DAY", 28, 225, 10.5, "serif", RED)
+    text(f"THE WORLD’S NEWS IN ONE PAGE · {story_count} STORIES · 6 CONTINENTS · ONE DAY",
+         996, 225, 10, "bold", align="right")
+    line([(28, 246), (996, 246)], INK, 2)
+    line([(28, 250), (996, 250)], INK, .65)
 
 
-def flag(x, y, country):
-    w, h = 54, 34
-    line([(x,y-4),(x,y+81)], INK, 1.6)
-    ellipse((x-2.5,y-7,x+2.5,y-2), RED)
-    rect((x+1,y,x+w,y+h), PAPER)
-    if country == "US":
-        for i in range(7):
-            rect((x+1,y+i*h/7,x+w,y+i*h/7+h/14), RED)
-        rect((x+1,y,x+24,y+19), NAVY)
-        for row in range(3):
-            for col in range(4):
-                star(x+5+col*5,y+4+row*5,1.4,PAPER,points=5)
-    elif country == "INDIA":
-        rect((x+1,y,x+w,y+h/3), "#bf8854")
-        rect((x+1,y+h*2/3,x+w,y+h), "#63735c")
-        ellipse((x+23,y+12,x+33,y+22), outline=NAVY, width=1)
-        for i in range(12):
-            a = i*pi/6
-            line([(x+28,y+17),(x+28+4*cos(a),y+17+4*sin(a))], NAVY, 0.45)
-    elif country == "JAPAN":
-        ellipse((x+19,y+9,x+36,y+26), RED)
-    else:
-        rect((x+1,y,x+w,y+h), NAVY)
-        line([(x+2,y+1),(x+25,y+15)], PAPER, 3)
-        line([(x+2,y+15),(x+25,y+1)], PAPER, 3)
-        rect((x+1,y+5,x+26,y+10), PAPER)
-        rect((x+11,y,x+16,y+17), PAPER)
-        rect((x+1,y+6.5,x+26,y+8.5), RED)
-        rect((x+12.5,y,x+14.5,y+17), RED)
-        star(x+15,y+25,4,points=7)
-        for xx, yy in [(39,9),(33,19),(46,18),(40,27)]:
-            star(x+xx,y+yy,2.4,points=7)
-    rect((x+1,y,x+w,y+h), outline=INK, width=0.6)
-
-
-def manila_art(x, y, w, h):
-    rect((x,y,x+w,y+h), STONE)
-    # A concentric seal and four national flags on a shared stage.
-    globe(x+w/2,y+51,32,"#c4bba8")
-    for xx, name in zip([22,93,164,235],["US","INDIA","JAPAN","AUSTRALIA"]):
-        flag(x+xx,y+42,name)
-    rect((x+13,y+127,x+w-13,y+141), NAVY)
-    rect((x+25,y+141,x+w-25,y+151), NAVY)
-    line([(x+25,y+141),(x+w-25,y+141)], PAPER, 1)
-    # A small mineral-crystal emblem under the negotiating stage.
-    for xx, yy, ss in [(133,159,0.7),(153,154,1),(175,160,0.6)]:
-        poly([(x+xx,y+yy+14*ss),(x+xx+6*ss,y+yy),
-              (x+xx+16*ss,y+yy-4*ss),(x+xx+22*ss,y+yy+14*ss)], BLUE)
-        line([(x+xx+6*ss,y+yy),(x+xx+11*ss,y+yy+14*ss)], PAPER, 0.8)
+def chip(label, x, y, color):
+    w = text_width(label, 8.4, "bold") + 15
+    draw.rounded_rectangle(tuple(round(v * SCALE) for v in (x, y, x+w, y+14)),
+                           radius=7*SCALE, fill=color)
+    text(label, x + 7.5, y + 3.5, 8.4, "bold", PAPER)
 
 
 def icon(kind, x, y):
@@ -294,34 +215,58 @@ def icon(kind, x, y):
         rect((x+9,y+16,x+11,y+23),PAPER)
 
 
-def italic(value, x, y, size, max_width):
-    """Slant the installed DejaVu Serif regular; no extra font dependency."""
-    face = font(size,"book")
-    b = draw.textbbox((0,0),value,font=face)
-    w,h = b[2]-b[0],b[3]-b[1]
-    pad = round(5*SCALE)
-    tile = Image.new("RGBA",(w+2*pad,h+2*pad),(0,0,0,0))
-    ImageDraw.Draw(tile).text((pad-b[0],pad-b[1]),value,font=face,fill=INK)
-    skew = 0.18
-    extra = round(skew*tile.height)
-    tile = tile.transform((tile.width+extra,tile.height),Image.Transform.AFFINE,
-                          (1,skew,-extra,0,1,0),Image.Resampling.BICUBIC)
-    assert (tile.width-2*pad)/SCALE <= max_width,(value,tile.width/SCALE,max_width)
-    image.paste(tile,(round(x*SCALE)-pad,round(y*SCALE)-pad),tile)
-
-
 def small_icon(kind, x, y, size=20):
-    """Scale the shared icon geometry, including its stroke, on a fixed grid."""
+    """Scale ink-only icon tiles and place a one-pixel, dark warm shadow."""
     global image, draw
     page, page_draw = image, draw
-    tile = Image.new("RGB", (36*SCALE, 36*SCALE), PAPER)
+    tile = Image.new("RGBA", (36*SCALE, 36*SCALE))
     try:
         image, draw = tile, ImageDraw.Draw(tile)
         icon(kind, 1, 1)
+        # Fine structural details share the symbols' 1.7-unit stroke grid.
+        if kind == "outage":
+            for xx in (8, 13, 18):
+                line([(xx, 8), (xx+2, 8)], BLUE, 1.7)
+            line([(7, 27), (12, 27)], BLUE, 1.7)
+        elif kind == "health":
+            line([(8, 9), (8, 18), (12, 24)], BLUE, 1.7)
+        elif kind == "climate":
+            line([(30, 26), (30, 33)], RED, 1.7)
+            ellipse((28, 30, 32, 34), RED)
+        elif kind == "hospital":
+            line([(3, 33), (32, 33)], NAVY, 1.7)
+            rect((8, 15, 11, 18), BLUE)
+            rect((24, 15, 27, 18), BLUE)
+        elif kind == "chip":
+            rect((12, 12, 22, 22), outline=BLUE, width=1.7)
+        elif kind == "strike":
+            line([(12, 32), (24, 32)], NAVY, 1.7)
+            ellipse((25, 26, 28, 29), NAVY)
     finally:
         image, draw = page, page_draw
     tile = tile.resize((round(size*SCALE), round(size*SCALE)), Image.Resampling.LANCZOS)
+    shadow = Image.new("RGBA", tile.size, "#c4b79f")
+    image.paste(shadow, (round((x+1)*SCALE), round((y+1)*SCALE)), tile.getchannel("A"))
+    image.paste(tile, (round(x*SCALE), round(y*SCALE)), tile)
+
+
+def artwork(plate, x, y, w, h):
+    tile = plate(SCALE)
+    if tile.size != (round(w*SCALE), round(h*SCALE)):
+        tile = tile.resize((round(w*SCALE), round(h*SCALE)), Image.Resampling.LANCZOS)
     image.paste(tile, (round(x*SCALE), round(y*SCALE)))
+
+
+def bridge_art(x, y, w, h):
+    artwork(bridge, x, y, w, h)
+
+
+def hormuz_art(x, y, w, h):
+    artwork(hormuz, x, y, w, h)
+
+
+def manila_art(x, y, w, h):
+    artwork(manila, x, y, w, h)
 
 
 def build():
@@ -383,65 +328,65 @@ def build():
     story_count = len(panels) + len(cards) + len(more) + len(briefs)
     assert story_count == 41
 
-    # Preserve the oversized masthead and date as the visual entry point.
-    text("THE DAILY WORLD BRIEF",28,29,10,"bold",RED)
-    globe(512,34,9,RED)
-    text("INDEPENDENT WORLD EDITION",996,29,10,"bold",RED,"right")
-    fitted("THE WORLD IN A DAY",512,52,49,"serif",968,align="center")
-    line([(28,114),(419,114)],INK,1)
-    tracked("TUESDAY",512,108,14,3.5,RED)
-    line([(605,114),(996,114)],INK,1)
-    fitted("17 NOVEMBER 2026",512,130,73,"serif",968,align="center",minimum=65)
-    text(f"THE WORLD’S NEWS IN ONE PAGE · {story_count} STORIES · 6 CONTINENTS · ONE DAY",
-         512,204,11.5,"bold",align="center",max_width=968)
-    line([(28,225),(996,225)],INK,2)
-    line([(28,231),(996,231)],INK,0.8)
+    paper_grain()
+    masthead(story_count)
 
+    for x in (348, 676):
+        line([(x, 261), (x, 531)], HAIRLINE, .5)
     for x,tag,place,art,headline,deck in panels:
-        text(tag,x,243,10,"bold",RED)
-        text(place,x+312,243,9,"bold",INK,"right")
-        art(x+1,262,310,180)
-        rect((x,261,x+312,443),outline=INK,width=2)
+        text(tag,x,262,10,"bold",RED)
+        text(place,x+312,262,9,"bold",INK,"right")
+        art(x+1,281,310,166)
+        rect((x,280,x+312,448),outline=INK,width=.8)
         for i, value in enumerate(headline):
-            fitted(value,x,453+i*30,27,"serif",312,minimum=24)
-        fitted(deck,x,518,10.3,"bold",312,color=MUTED)
+            fitted(value,x,458+i*29,27,"serif",312,minimum=24)
+        fitted(deck,x,520,10.3,"bold",312,color=MUTED)
 
-    line([(28,538),(996,538)],INK,2)
-    text("THE DAY IN EIGHT DISPATCHES",28,549,10.5,"bold",RED)
-    text("POLITICS / HEALTH / CLIMATE / TECHNOLOGY",996,550,9,"bold",MUTED,"right")
+    line([(28,542),(996,542)],INK,2)
+    text("THE DAY IN EIGHT DISPATCHES",28,553,10.5,"bold",RED)
+    text("POLITICS / HEALTH / CLIMATE / TECHNOLOGY",996,554,9,"bold",MUTED,"right")
+    for x in (270, 512, 754):
+        line([(x,578),(x,754)],HAIRLINE,.5)
     for n,(region,kind,title,deck) in enumerate(cards):
-        x = 28+(n%4)*248
-        y = 570+(n//4)*94
-        rect((x,y,x+224,y+86),outline=INK,width=1)
-        text(region,x+12,y+10,8.2,"bold",RED,max_width=200)
-        small_icon(kind,x+190,y+31,23)
+        x = 28+(n%4)*242
+        y = 579+(n//4)*91
+        xx = x + (0 if n%4 == 0 else 10)
+        line([(xx,y+82),(x+232,y+82)],HAIRLINE,.5)
+        chip(region,xx,y,NAVY if n%4 != 0 else RED)
+        small_icon(kind,xx+190,y+25,30)
         for i,value in enumerate(title):
-            fitted(value,x+12,y+28+i*21,18,"serif",174,minimum=16)
-        fitted(deck,x+12,y+70,8.2,"bold",200,color=MUTED,minimum=8)
+            fitted(value,xx,y+24+i*21,18,"serif",180,minimum=16)
+        fitted(deck,xx,y+68,8.2,"bold",222,color=MUTED,minimum=8)
 
-    line([(28,762),(996,762)],INK,1.5)
-    text("THE WORLD IN TWELVE MORE",28,774,10.5,"bold",RED)
-    text("A WIDER LENS / SIX CONTINENTS",996,775,9,"bold",MUTED,"right")
-    gap = 8
+    line([(28,765),(996,765)],INK,1.5)
+    text("THE WORLD IN TWELVE MORE",28,777,10.5,"bold",RED)
+    text("A WIDER LENS / SIX CONTINENTS",996,778,9,"bold",MUTED,"right")
+    gap = 12
     card_width = (968-5*gap)/6
+    for col in range(1,6):
+        x = 28+col*(card_width+gap)-gap/2
+        line([(x,797),(x,890)],HAIRLINE,.5)
     for n,(region,kind,headline,detail) in enumerate(more):
         x = 28+(n%6)*(card_width+gap)
-        y = 794+(n//6)*51
-        rect((x,y,x+card_width,y+45),outline=MUTED,width=0.65)
-        small_icon(kind,x+5,y+4,16)
-        text(region,x+25,y+7,7.5,"bold",RED,max_width=card_width-29)
-        fitted(headline,x+6,y+22,10.5,"serif",card_width-12,minimum=10)
-        fitted(detail,x+6,y+35,8,"sans",card_width-12,minimum=8)
+        y = 798+(n//6)*49
+        small_icon(kind,x,y,17)
+        text(region,x+22,y+3,7.5,"bold",RED,max_width=card_width-22)
+        fitted(headline,x,y+21,10.5,"serif",card_width,minimum=10)
+        fitted(detail,x,y+34,8,"sans",card_width,minimum=8)
+        if n<6:
+            line([(x,y+45),(x+card_width,y+45)],HAIRLINE,.5)
 
     line([(28,900),(996,900)],INK,1.5)
-    text("WORLD BRIEFS · EIGHTEEN IN FOCUS",28,910,10.5,"bold",RED)
-    text("EARLIER & UPCOMING EVENT DATES MARKED",996,911,8.5,"bold",MUTED,"right")
+    text("WORLD BRIEFS · EIGHTEEN IN FOCUS",28,911,10.5,"bold",RED)
+    text("EARLIER & UPCOMING EVENT DATES MARKED",996,912,8.5,"bold",MUTED,"right")
+    for x in (348.5, 674.5):
+        line([(x,931),(x,996)],HAIRLINE,.5)
     for n,value in enumerate(briefs):
-        x = 28+(n%3)*(968/3)
-        y = 931+(n//3)*11.5
-        ellipse((x,y+3,x+3,y+6),RED)
-        text(value,x+9,y,9.2,"book",max_width=309)
-    line([(28,1000),(996,1000)],INK,0.8)
+        x = 28+(n%3)*326
+        y = 932+(n//3)*11.2
+        poly([(x,y+3.3),(x+1.8,y+1.5),(x+3.6,y+3.3),(x+1.8,y+5.1)],RED)
+        text(value,x+9,y,9.2,"book",max_width=307)
+    line([(28,1000),(996,1000)],INK,.8)
     # Check all normal text boxes for unintended overlap, including small caps.
     for n,(a,ba) in enumerate(TEXT_BOXES):
         for b,bb in TEXT_BOXES[n+1:]:
